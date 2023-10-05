@@ -1,4 +1,4 @@
-package com.office.library.book.admin;
+package com.office.library.book.user;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -19,38 +19,10 @@ public class BookDAO {
 	@Autowired
 	JdbcTemplate jdbcTemplate;
 	
-	public boolean isISBN(String b_isbn) {
-		String sql = "SELECT COUNT(*) FROM tbl_book WHERE b_isbn = ?";
-		
-		int result = jdbcTemplate.queryForObject(sql, Integer.class, b_isbn);
-		
-		return result > 0 ? true : false;
-	}
-	
-	public int insertBook(BookVO bookVO) {	
-		String sql = "INSERT INTO tbl_book(b_thumbnail, "
-				+ "b_name, b_author, b_publisher, "
-				+ "b_publish_year, b_isbn, b_call_number, "
-				+ "b_rental_able, b_reg_date, b_mod_date) "
-				+ "VALUES(?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())";
-		
-		int result = -1;
-		
-		try {
-			result = jdbcTemplate.update(sql,
-					bookVO.getB_thumbnail(), bookVO.getB_name(),
-					bookVO.getB_author(), bookVO.getB_publisher(),
-					bookVO.getB_publish_year(), bookVO.getB_isbn(),
-					bookVO.getB_call_number(), bookVO.getB_rental_able());
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-		
-		return result;	
-	}
-	
 	public List<BookVO> selectBooksBySearch(BookVO bookVO) {
-		String sql = "SELECT * FROM tbl_book WHERE b_name LIKE ? ORDER BY b_no DESC";
+		String sql = "SELECT * FROM tbl_book "
+				+ "WHERE b_name LIKE ? "
+				+ "ORDER BY b_no DESC";
 		
 		List<BookVO> bookVOs = null;
 		
@@ -120,73 +92,41 @@ public class BookDAO {
 		return bookVOs.size() > 0 ? bookVOs.get(0) : null;
 	}
 	
-	public int updateBook(BookVO bookVO) {
-		List<String> args = new ArrayList<String>();
-		
-		String sql = "UPDATE tbl_book SET ";
-		
-		if (bookVO.getB_thumbnail() != null) {
-			sql += "b_thumbnail = ?, ";
-			args.add(bookVO.getB_thumbnail());
-		}
-		
-		sql += "b_name = ?, ";
-		args.add(bookVO.getB_name());
-		
-		sql += "b_author = ?, ";
-		args.add(bookVO.getB_author());
-		
-		sql += "b_publisher = ?, ";
-		args.add(bookVO.getB_publisher());
-		
-		sql += "b_publish_year = ?, ";
-		args.add(bookVO.getB_publish_year());
-		
-		sql += "b_isbn = ?, ";
-		args.add(bookVO.getB_isbn());
-		
-		sql += "b_rental_able = ?, ";
-		args.add(Integer.toString(bookVO.getB_rental_able()));
-		
-		sql += "b_mod_date = NOW() ";
-		
-		sql += "WHERE b_no = ?";
-		args.add(Integer.toString(bookVO.getB_no()));
+	public int insertRentalBook(int b_no, int u_m_no) {
+		String sql = "INSERT INTO tbl_rental_book(b_no, u_m_no, rb_start_date, rb_reg_date, rb_mod_date) "
+				+ "VALUES(?, ?, NOW(), NOW(), NOW())";
 		
 		int result = -1;
 		
 		try {
-			result = jdbcTemplate.update(sql, args.toArray());
+			result = jdbcTemplate.update(sql, b_no, u_m_no);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 		
 		return result;
 	}
-	
-	public int deleteBook(int b_no) {
-		String sql = "DELETE FROM tbl_book "
+
+	public void updateRentalBookAble(int b_no) {
+		String sql = "UPDATE tbl_book "
+				+ "SET b_rental_able = 0 "
 				+ "WHERE b_no = ?";
 		
-		int result = -1;
-		
 		try {
-			result = jdbcTemplate.update(sql, b_no);
+			jdbcTemplate.update(sql, b_no);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 		
-		return result;
 	}
 	
-	public List<RentalBookVO> selectRentalBooks() {
+	public List<RentalBookVO> selectRentalBooks(int u_m_no) {
 		String sql = "SELECT * FROM tbl_rental_book rb "
 				+ "JOIN tbl_book b "
 				+ "ON rb.b_no = b.b_no "
 				+ "JOIN tbl_user_member um "
 				+ "ON rb.u_m_no = um.u_m_no "
-				+ "WHERE rb.rb_end_date = '1000-01-01' "
-				+ "ORDER BY um.u_m_id ASC, rb.rb_reg_date DESC";
+				+ "WHERE rb.u_m_no = ? AND rb.rb_end_date = '1000-01-01'";
 		
 		List<RentalBookVO> rentalBookVOs = new ArrayList<RentalBookVO>();
 		
@@ -226,7 +166,8 @@ public class BookDAO {
 					
 					return rentalBookVO;
 				}
-			});
+				
+			}, u_m_no);
 			
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -234,37 +175,61 @@ public class BookDAO {
 		
 		return rentalBookVOs;
 	}
-	
-	public int updateRentalBook(int rb_no) {
-		String sql = "UPDATE tbl_rental_book "
-				+ "SET rb_end_date = NOW() "
-				+ "WHERE rb_no = ?";
+
+	public List<RentalBookVO> selectRentalBookHistory(int u_m_no) {
+		String sql = "SELECT * FROM tbl_rental_book rb "
+				+ "JOIN tbl_book b "
+				+ "ON rb.b_no = b.b_no "
+				+ "JOIN tbl_user_member um "
+				+ "ON rb.u_m_no = um.u_m_no "
+				+ "WHERE rb.u_m_no = ? "
+				+ "ORDER BY rb.rb_reg_date DESC";
 		
-		int result = -1;
+		List<RentalBookVO> rentalBookVOs = new ArrayList<RentalBookVO>();
 		
 		try {
-			result = jdbcTemplate.update(sql, rb_no);
+			rentalBookVOs = jdbcTemplate.query(sql, new RowMapper<RentalBookVO>() {
+				
+				@Override
+				public RentalBookVO mapRow(ResultSet rs, int rowNum) throws SQLException {
+					RentalBookVO rentalBookVO = new RentalBookVO();
+					
+					rentalBookVO.setRb_no(rs.getInt("rb_no"));
+					rentalBookVO.setB_no(rs.getInt("b_no"));
+					rentalBookVO.setU_m_no(rs.getInt("u_m_no"));
+					rentalBookVO.setRb_start_date(rs.getString("rb_start_date"));
+					rentalBookVO.setRb_end_date(rs.getString("rb_end_date"));
+					rentalBookVO.setRb_reg_date(rs.getString("rb_reg_date"));
+					rentalBookVO.setRb_mod_date(rs.getString("rb_mod_date"));
+					
+					rentalBookVO.setB_thumbnail(rs.getString("b_thumbnail"));
+					rentalBookVO.setB_name(rs.getString("b_name"));
+					rentalBookVO.setB_author(rs.getString("b_author"));
+					rentalBookVO.setB_publisher(rs.getString("b_publisher"));
+					rentalBookVO.setB_publish_year(rs.getString("b_publish_year"));
+					rentalBookVO.setB_isbn(rs.getString("b_isbn"));
+					rentalBookVO.setB_call_number(rs.getString("b_call_number"));
+					rentalBookVO.setB_rental_able(rs.getInt("b_rental_able"));
+					rentalBookVO.setB_reg_date(rs.getString("b_reg_date"));
+					
+					rentalBookVO.setU_m_id(rs.getString("u_m_id"));
+					rentalBookVO.setU_m_pw(rs.getString("u_m_pw"));
+					rentalBookVO.setU_m_name(rs.getString("u_m_name"));
+					rentalBookVO.setU_m_gender(rs.getString("u_m_gender"));
+					rentalBookVO.setU_m_mail(rs.getString("u_m_mail"));
+					rentalBookVO.setU_m_phone(rs.getString("u_m_phone"));
+					rentalBookVO.setU_m_reg_date(rs.getString("u_m_reg_date"));
+					rentalBookVO.setU_m_mod_date(rs.getString("u_m_mod_date"));
+					
+					return rentalBookVO;
+				}
+			}, u_m_no);
+			
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 		
-		return result;
-	}
-	
-	public int updateBook(int b_no) {
-		String sql = "UPDATE tbl_book "
-				+ "SET b_rental_able = 1 "
-				+ "WHERE b_no = ?";
-		
-		int result = -1;
-		
-		try {
-			result = jdbcTemplate.update(sql, b_no);
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-		
-		return result;
+		return rentalBookVOs;
 	}
 	
 }

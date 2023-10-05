@@ -63,11 +63,12 @@ public class UserMemberController {
 	public String modifyAccountForm(HttpSession session) {
 		String nextPage = "user/member/modify_account_form";
 		
-		UserMemberVO loginedUserMemberVO =
-				(UserMemberVO) session.getAttribute("loginedUserMemberVO");
-		
-		if (loginedUserMemberVO == null)
-			nextPage = "redirect:/user/member/loginForm";
+		// 인터셉터에 넣어서 로그인 확인 따로 넣지 않아도 됨
+//		UserMemberVO loginedUserMemberVO =
+//				(UserMemberVO) session.getAttribute("loginedUserMemberVO");
+//		
+//		if (loginedUserMemberVO == null)
+//			nextPage = "redirect:/user/member/loginForm";
 		
 		return nextPage;
 	}

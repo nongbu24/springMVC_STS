@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.office.library.book.BookVO;
+import com.office.library.book.RentalBookVO;
 
 @Service
 public class BookService {
@@ -52,6 +53,19 @@ public class BookService {
 	
 	public int deleteBookConfirm(int b_no) {
 		return bookDAO.deleteBook(b_no);
+	}
+	
+	public List<RentalBookVO> getRentalBooks() {
+		return bookDAO.selectRentalBooks();
+	}
+	
+	public int returnBookConfirm(int b_no, int rb_no) {
+		int result = bookDAO.updateRentalBook(rb_no);
+		
+		if (result > 0)
+			result = bookDAO.updateBook(b_no);
+		
+		return result;
 	}
 	
 }
